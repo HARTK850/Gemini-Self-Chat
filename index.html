@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Self-Chat - צ'אט עם עצמי</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">טוען...</div>
+    </div>
+
+    <!-- API Key Setup -->
+    <div id="apiSetup" class="container">
+        <div class="setup-card">
+            <div class="setup-header">
+                <i class="fas fa-key"></i>
+                <h1>הגדרת Gemini API</h1>
+                <p>הכנס את מפתח ה-API שלך כדי להתחיל</p>
+            </div>
+            <form id="apiForm">
+                <div class="input-group">
+                    <label for="apiKey">מפתח API של Gemini:</label>
+                    <input type="password" id="apiKey" placeholder="הכנס את מפתח ה-API שלך..." required>
+                    <button type="button" id="toggleApiKey" class="toggle-password">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    שמור והמשך
+                </button>
+            </form>
+            <div class="api-help">
+                <p><i class="fas fa-info-circle"></i> איך להשיג מפתח API?</p>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank">
+                    קבל מפתח API מ-Google AI Studio
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chat Interface -->
+    <div id="mainApp" class="main-app hidden">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    <span>Gemini Self-Chat</span>
+                </div>
+                <div class="header-actions">
+                    <button id="newChatBtn" class="btn btn-secondary">
+                        <i class="fas fa-plus"></i>
+                        צ'אט חדש
+                    </button>
+                    <button id="exportBtn" class="btn btn-secondary">
+                        <i class="fas fa-download"></i>
+                        יצוא
+                    </button>
+                    <button id="settingsBtn" class="btn btn-secondary">
+                        <i class="fas fa-cog"></i>
+                        הגדרות
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h3><i class="fas fa-history"></i> היסטוריית צ'אטים</h3>
+                </div>
+                <div id="chatHistory" class="chat-history">
+                    <!-- Chat history items will be inserted here -->
+                </div>
+            </aside>
+
+            <!-- Chat Area -->
+            <main class="chat-area">
+                <!-- Welcome Screen -->
+                <div id="welcomeScreen" class="welcome-screen">
+                    <div class="welcome-content">
+                        <i class="fas fa-comments"></i>
+                        <h2>ברוך הבא לצ'אט העצמי של Gemini!</h2>
+                        <p>בחר דמות או הגדר סגנון שיחה כדי התחיל</p>
+                        <button id="startChatBtn" class="btn btn-primary btn-large">
+                            <i class="fas fa-play"></i>
+                            התחל צ'אט חדש
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat Container -->
+                <div id="chatContainer" class="chat-container hidden">
+                    <div class="chat-header">
+                        <div class="chat-info">
+                            <h3 id="chatTitle">צ'אט חדש</h3>
+                            <span id="chatStatus" class="chat-status">מוכן</span>
+                        </div>
+                        <div class="chat-controls">
+                            <span id="roundCounter" class="round-counter">סיבוב 0/5</span>
+                            <button id="pauseBtn" class="btn btn-small">
+                                <i class="fas fa-pause"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="chatMessages" class="chat-messages">
+                        <!-- Messages will be inserted here -->
+                    </div>
+                    
+                    <div class="chat-actions">
+                        <button id="continueBtn" class="btn btn-primary hidden">
+                            <i class="fas fa-forward"></i>
+                            המשך ל-5 סיבובים נוספים
+                        </button>
+                        <button id="stopChatBtn" class="btn btn-danger">
+                            <i class="fas fa-stop"></i>
+                            עצור צ'אט
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Setup Modal -->
+    <div id="setupModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> הגדרות צ'אט חדש</h3>
+                <button id="closeSetupModal" class="btn-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setup-tabs">
+                    <button class="tab-btn active" data-tab="character">דמויות</button>
+                    <button class="tab-btn" data-tab="custom">מותאם אישית</button>
+                    <button class="tab-btn" data-tab="settings">הגדרות מתקדמות</button>
+                </div>
+
+                <!-- Character Tab -->
+                <div id="characterTab" class="tab-content active">
+                    <h4>בחר דמות:</h4>
+                    <div class="character-grid" id="characterGrid">
+                        <!-- Characters will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Custom Tab -->
+                <div id="customTab" class="tab-content">
+                    <h4>הגדר סגנון שיחה מותאם:</h4>
+                    <div class="input-group">
+                        <label for="customTopic">נושא השיחה:</label>
+                        <input type="text" id="customTopic" placeholder="לדוגמה: דיון על בינה מלאכותית">
+                    </div>
+                    <div class="input-group">
+                        <label for="customStyle">סגנון השיחה:</label>
+                        <textarea id="customStyle" placeholder="לדוגמה: שיחה ידידותית ופתוחה עם סקרנות רבה"></textarea>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div id="settingsTab" class="tab-content">
+                    <h4>הנחיות מערכת:</h4>
+                    <div class="input-group">
+                        <label for="questionInstructions">הנחיות לשאלות:</label>
+                        <textarea id="questionInstructions" placeholder="הנחיות מיוחדות לג'מיני כששואל שאלות..."></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="answerInstructions">הנחיות לתשובות:</label>
+                        <textarea id="answerInstructions" placeholder="הנחיות מיוחדות לג'מיני כשעונה על שאלות..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="startCustomChat" class="btn btn-primary">
+                    <i class="fas fa-play"></i>
+                    התחל צ'אט
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> הגדרות כלליות</h3>
+                <button id="closeSettingsModal" class="btn-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="newApiKey">עדכן מפתח API:</label>
+                    <input type="password" id="newApiKey" placeholder="מפתח API חדש...">
+                    <button type="button" id="toggleNewApiKey" class="toggle-password">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                <div class="input-group">
+                    <button id="clearHistory" class="btn btn-danger">
+                        <i class="fas fa-trash"></i>
+                        נקה היסטוריה
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveSettings" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    שמור
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
