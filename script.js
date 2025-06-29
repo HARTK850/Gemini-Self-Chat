@@ -440,7 +440,7 @@ async function generateAnswer(question) {
 }
 
 async function callGeminiAPI(prompt) {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -453,12 +453,22 @@ async function callGeminiAPI(prompt) {
             }]
         })
     });
-    
+
     if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+        // --- שינוי כאן ---
+        const errorData = await response.json(); // נסה לקרוא את תוכן השגיאה
+        console.error('API Error Response:', errorData); // הדפס את תוכן השגיאה המלא לקונסול
+        throw new Error(`API Error: ${response.status} - ${errorData.error ? errorData.error.message : 'Unknown error'}`);
+        // --- סוף שינוי ---
     }
-    
+
     const data = await response.json();
+    // --- שינוי נוסף: בדיקה אם יש מועמדים בתגובה ---
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+        console.error('Unexpected API response structure:', data);
+        throw new Error('Unexpected response from Gemini API: Missing content.');
+    }
+    // --- סוף שינוי נוסף ---
     return data.candidates[0].content.parts[0].text;
 }
 
