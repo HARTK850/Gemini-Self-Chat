@@ -415,7 +415,7 @@ async function generateNextRound() {
     } catch (error) {
         console.error('Error generating conversation:', error);
         updateChatStatus('שגיאה בייצור השיחה');
-        alert('שגיאה בחיבור לג\'מיני. אנא בדוק את מפתח ה-API.');
+        alert('שגיאה בחיבור לג\'מיני. אנא בדוק את מפתח ה-API. פרטים נוספים בקונסול.');
     }
 }
 
@@ -424,23 +424,41 @@ async function generateQuestion() {
     let prompt = '';
     
     if (config.type === 'character') {
-        prompt = config.questionInstructions;
+        // --- שינוי כאן: הנחיה ממוקדת יותר לשאלה בודדת מהדמות ---
+        prompt = `כעת אתה מגלם את דמותו של ${config.character.name} (${config.character.description}). עליך לשאול שאלה אחת בלבד, בין 5 ל-20 מילים, המשקפת את סגנון הדמות. אל תפנה את השאלה ישירות ל"ג\'מיני" או אל תכלול את המילה "ג\'מיני" בשאלה. השאלה צריכה להישאל כאילו אתה מראיין את הצד השני (אתה, המודל), ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה, אם אתה ביבי, שאל: 'איך לדעתי נבטיח את ביטחון ישראל?' או 'האם זו הדרך הנכונה לטפל בכלכלה לדעתי?'. השאלה צריכה להיות ייחודית ולא לחזור על שאלות קודמות.`;
+        // --- סוף שינוי ---
     } else {
-        prompt = `${config.questionInstructions}. שאל שאלה קצרה ומעניינת על ${config.topic} בסגנון ${config.style}. השאלה צריכה להיות בין 5 ל-20 מילים ולהסתיים בסימן שאלה.`;
+        // --- שינוי כאן: הנחיה ממוקדת יותר לשאלה בודדת מותאמת אישית ---
+        prompt = `שאל שאלה אחת בלבד, בין 5 ל-20 מילים, על ${config.topic} בסגנון ${config.style}. אל תפנה את השאלה ישירות ל"ג\'מיני" או אל תכלול את המילה "ג\'מיני" בשאלה. השאלה צריכה להיות ייחודית ולא לחזור על שאלות קודמות, ותמיד להסתיים בסימן שאלה.`;
+        // --- סוף שינוי ---
     }
     
+    // הוספת היסטוריית השיחה לפרומפט כדי למנוע חזרה על שאלות (חשוב!)
+    if (currentChat && currentChat.messages.length > 0) {
+        const previousQuestions = currentChat.messages
+            .filter(msg => msg.type === 'question')
+            .map(msg => msg.content);
+        if (previousQuestions.length > 0) {
+            prompt += ` שאלות קודמות: ${previousQuestions.join('; ')}. ודא שהשאלה הנוכחית שונה לחלוטין מהן.`;
+        }
+    }
+
     return await callGeminiAPI(prompt);
 }
 
 async function generateAnswer(question) {
     const config = currentChat.config;
-    let prompt = `${config.answerInstructions}\n\nהשאלה: ${question}\n\nענה על השאלה בצורה מפורטת ומעניינת.`;
-    
-    return await callGeminiAPI(prompt);
+    // --- שינוי כאן: הוספת הקונטקסט של הדמות לתשובה כדי לשפר רלוונטיות ---
+    let fullPrompt = `אתה ג\'מיני. ענה על השאלה הבאה מנקודת מבט אובייקטיבית, מפורטת ועניינית. הקפד להתייחס לשאלה הספציפית שנשאלה, ולא לשאול שאלות בחזרה. השאלה שנשאלה: "${question}"`;
+    if (config.type === 'character') {
+        fullPrompt = `אתה ג\'מיני. הדמות המראיינת היא ${config.character.name} (${config.character.description}). ענה על השאלה הבאה מנקודת מבט אובייקטיבית, מפורטת ועניינית. הקפד להתייחס לשאלה הספציפית שנשאלה על ידי הדמות, ולא לשאול שאלות בחזרה. השאלה שנשאלה: "${question}"`;
+    }
+    // --- סוף שינוי ---
+    return await callGeminiAPI(fullPrompt);
 }
 
 async function callGeminiAPI(prompt) {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, { // שינוי ל-gemini-1.5-flash
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -450,25 +468,39 @@ async function callGeminiAPI(prompt) {
                 parts: [{
                     text: prompt
                 }]
-            }]
+            }],
+            safetySettings: [ // הוספת הגדרות בטיחות
+                {
+                    category: "HARM_CATEGORY_HARASSMENT",
+                    threshold: "BLOCK_NONE"
+                },
+                {
+                    category: "HARM_CATEGORY_HATE_SPEECH",
+                    threshold: "BLOCK_NONE"
+                },
+                {
+                    category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    threshold: "BLOCK_NONE"
+                },
+                {
+                    category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    threshold: "BLOCK_NONE"
+                },
+            ]
         })
     });
-
+    
     if (!response.ok) {
-        // --- שינוי כאן ---
-        const errorData = await response.json(); // נסה לקרוא את תוכן השגיאה
-        console.error('API Error Response:', errorData); // הדפס את תוכן השגיאה המלא לקונסול
+        const errorData = await response.json();
+        console.error('API Error Response:', errorData);
         throw new Error(`API Error: ${response.status} - ${errorData.error ? errorData.error.message : 'Unknown error'}`);
-        // --- סוף שינוי ---
     }
-
+    
     const data = await response.json();
-    // --- שינוי נוסף: בדיקה אם יש מועמדים בתגובה ---
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
         console.error('Unexpected API response structure:', data);
         throw new Error('Unexpected response from Gemini API: Missing content.');
     }
-    // --- סוף שינוי נוסף ---
     return data.candidates[0].content.parts[0].text;
 }
 
@@ -512,7 +544,7 @@ function updateChatStatus(status) {
 }
 
 function continueChat() {
-    currentRound = 0;
+    currentRound = 0; // לאפס את הסבב כדי להתחיל מחזור חדש של 5 שאלות
     maxRounds = 5;
     elements.continueBtn.classList.add('hidden');
     updateChatStatus('ממשיך...');
