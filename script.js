@@ -583,7 +583,7 @@ function stopChat() {
     if (chatInterval) clearInterval(chatInterval);
     isPaused = true;
     elements.pauseBtn.querySelector('i').classList.replace('fa-pause', 'fa-play');
-    elements.chatStatus.textContent = 'צ'אט הסתיים. התחל חדש.';
+    elements.chatStatus.textContent = 'השיחה הסתיימה. התחל חדש.';
     elements.chatStatus.style.color = '#DC3545'; // Red for stopped
     elements.continueBtn.classList.remove('hidden');
     // We keep the current chat loaded but allow starting a new one
