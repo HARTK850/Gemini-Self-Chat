@@ -8,13 +8,11 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <!-- Loading Screen -->
     <div id="loading" class="loading">
         <div class="loading-spinner"></div>
         <div class="loading-text">טוען...</div>
     </div>
 
-    <!-- API Key Setup -->
     <div id="apiSetup" class="container">
         <div class="setup-card">
             <div class="setup-header">
@@ -44,9 +42,7 @@
         </div>
     </div>
 
-    <!-- Main Chat Interface -->
     <div id="mainApp" class="main-app hidden">
-        <!-- Header -->
         <header class="header">
             <div class="header-content">
                 <div class="logo">
@@ -70,21 +66,16 @@
             </div>
         </header>
 
-        <!-- Main Content -->
         <div class="main-content">
-            <!-- Sidebar -->
             <aside class="sidebar">
                 <div class="sidebar-header">
                     <h3><i class="fas fa-history"></i> היסטוריית צ'אטים</h3>
                 </div>
                 <div id="chatHistory" class="chat-history">
-                    <!-- Chat history items will be inserted here -->
-                </div>
+                    </div>
             </aside>
 
-            <!-- Chat Area -->
             <main class="chat-area">
-                <!-- Welcome Screen -->
                 <div id="welcomeScreen" class="welcome-screen">
                     <div class="welcome-content">
                         <i class="fas fa-comments"></i>
@@ -97,7 +88,6 @@
                     </div>
                 </div>
 
-                <!-- Chat Container -->
                 <div id="chatContainer" class="chat-container hidden">
                     <div class="chat-header">
                         <div class="chat-info">
@@ -113,8 +103,7 @@
                     </div>
                     
                     <div id="chatMessages" class="chat-messages">
-                        <!-- Messages will be inserted here -->
-                    </div>
+                        </div>
                     
                     <div class="chat-actions">
                         <button id="continueBtn" class="btn btn-primary hidden">
@@ -131,7 +120,6 @@
         </div>
     </div>
 
-    <!-- Setup Modal -->
     <div id="setupModal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
@@ -147,20 +135,21 @@
                     <button class="tab-btn" data-tab="settings">הגדרות מתקדמות</button>
                 </div>
 
-                <!-- Character Tab -->
                 <div id="characterTab" class="tab-content active">
                     <h4>בחר דמות:</h4>
                     <div class="character-grid" id="characterGrid">
-                        <!-- Characters will be inserted here -->
+                        </div>
+                    <div class="input-group" style="margin-top: 20px;">
+                        <label for="customTopic">נושא השיחה (חובה להתחלה):</label>
+                        <input type="text" id="customTopic" placeholder="לדוגמה: עתיד הכלכלה, בינה מלאכותית, אירועי היום...">
                     </div>
                 </div>
 
-                <!-- Custom Tab -->
                 <div id="customTab" class="tab-content">
                     <h4>הגדר סגנון שיחה מותאם:</h4>
                     <div class="input-group">
-                        <label for="customTopic">נושא השיחה:</label>
-                        <input type="text" id="customTopic" placeholder="לדוגמה: דיון על בינה מלאכותית">
+                        <label for="customTopicCustom">נושא השיחה (חובה):</label>
+                        <input type="text" id="customTopicCustom" placeholder="לדוגמה: דיון על בינה מלאכותית" required>
                     </div>
                     <div class="input-group">
                         <label for="customStyle">סגנון השיחה:</label>
@@ -168,7 +157,6 @@
                     </div>
                 </div>
 
-                <!-- Settings Tab -->
                 <div id="settingsTab" class="tab-content">
                     <h4>הנחיות מערכת:</h4>
                     <div class="input-group">
@@ -190,7 +178,6 @@
         </div>
     </div>
 
-    <!-- Settings Modal -->
     <div id="settingsModal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
