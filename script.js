@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "https://esm.run/@google-generative-ai";
+import { GoogleGenerativeAI } from "https://esm.run/@google-generative-ai/web";
 
 const API_KEY_STORAGE_KEY = 'geminiApiKey';
 const CHAT_HISTORY_STORAGE_KEY = 'geminiChatHistory';
