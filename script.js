@@ -1,14 +1,179 @@
-// Global Variables
-let apiKey = '';
-let currentChat = null;
-let chatHistory = [];
-let isGenerating = false;
-let currentRound = 0;
-let maxRounds = 5;
+import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
-// Characters with their prompts
+const API_KEY_STORAGE_KEY = 'geminiApiKey';
+const CHAT_HISTORY_STORAGE_KEY = 'geminiChatHistory';
+
+const elements = {
+    loading: document.getElementById('loading'),
+    apiSetup: document.getElementById('apiSetup'),
+    apiKeyInput: document.getElementById('apiKey'),
+    apiForm: document.getElementById('apiForm'),
+    toggleApiKey: document.getElementById('toggleApiKey'),
+    mainApp: document.getElementById('mainApp'),
+    newChatBtn: document.getElementById('newChatBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    settingsBtn: document.getElementById('settingsBtn'),
+    chatHistoryDiv: document.getElementById('chatHistory'),
+    welcomeScreen: document.getElementById('welcomeScreen'),
+    startChatBtn: document.getElementById('startChatBtn'),
+    chatContainer: document.getElementById('chatContainer'),
+    chatTitle: document.getElementById('chatTitle'),
+    chatStatus: document.getElementById('chatStatus'),
+    roundCounter: document.getElementById('roundCounter'),
+    pauseBtn: document.getElementById('pauseBtn'),
+    chatMessages: document.getElementById('chatMessages'),
+    continueBtn: document.getElementById('continueBtn'),
+    stopChatBtn: document.getElementById('stopChatBtn'),
+    setupModal: document.getElementById('setupModal'),
+    closeSetupModal: document.getElementById('closeSetupModal'),
+    setupTabs: document.querySelector('.setup-tabs'),
+    characterTab: document.getElementById('characterTab'),
+    customTab: document.getElementById('customTab'),
+    settingsTab: document.getElementById('settingsTab'),
+    characterGrid: document.getElementById('characterGrid'),
+    customTopicInput: document.getElementById('customTopic'), // השדה בטאב הדמויות
+    customTopicCustomInput: document.getElementById('customTopicCustom'), // השדה בטאב המותאם אישית
+    customStyleInput: document.getElementById('customStyle'),
+    questionInstructions: document.getElementById('questionInstructions'),
+    answerInstructions: document.getElementById('answerInstructions'),
+    startCustomChatBtn: document.getElementById('startCustomChat'),
+    settingsModal: document.getElementById('settingsModal'),
+    closeSettingsModal: document.getElementById('closeSettingsModal'),
+    newApiKeyInput: document.getElementById('newApiKey'),
+    toggleNewApiKey: document.getElementById('toggleNewApiKey'),
+    clearHistoryBtn: document.getElementById('clearHistory'),
+    saveSettingsBtn: document.getElementById('saveSettings')
+};
+
+let genAI;
+let currentChat = null; // Stores the current chat session data
+let chatInterval = null;
+let isPaused = false;
+
+// --- Character Definitions ---
 const characters = [
     {
+        name: 'פילוסוף יווני',
+        icon: '🏛️',
+        description: 'הוגה דעות קדמון',
+        prompt: 'אני סוקרטס, פילוסוף יווני. תפקידי לשאול שאלות סוקרטיות, בין 5 ל-20 מילים, המעוררות מחשבה עמוקה ובחינה עצמית. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'האם אדם יכול לדעת דבר מבלי להכירו באמת?\', \'מהי המהות האמיתית של הטוב, אם בכלל?\''
+    },
+    {
+        name: 'סוכן FBI בדימוס',
+        icon: '🕶️',
+        description: 'בעל ניסיון עשיר בחקירות',
+        prompt: 'אני סוכן FBI בדימוס, מומחה לחקירות פליליות. תפקידי לשאול שאלות חדות ומוכוונות ראיות, בין 5 ל-20 מילים, המנסות לחשוף את האמת. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'מה המניע האמיתי מאחורי הפעולה הזו, לדעתך?\', \'האם יש כאן היבט נסתר שאיננו רואים?\''
+    },
+    {
+        name: 'קואצ\'רית לחיים',
+        icon: '🌟',
+        description: 'מעניקה השראה ומוטיבציה',
+        prompt: 'אני קואצ\'רית לחיים, מלאה באנרגיה חיובית. תפקידי לשאול שאלות מעצימות ומכוונות לצמיחה אישית, בין 5 ל-20 מילים. שאל כאילו את מראיינת, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'איזו הזדמנות צומחת מהאתגר הזה?\', \'מה הצעד הבא שיקדם אותנו להגשמה?\''
+    },
+    {
+        name: 'נהג אוטובוס תל-אביבי',
+        icon: '🚌',
+        description: 'עייף, ציני, אבל עם לב זהב',
+        prompt: 'אני נהג אוטובוס תל-אביבי אחרי משמרת כפולה. תפקידי לשאול שאלות מציאותיות וקצת עייפות, בין 5 ל-20 מילים, על חיי היומיום. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'נו, מתי כבר יבנו פה רכבת קלה אמיתית?\', \'האם הפקק הזה אי פעם ייגמר, לדעתך?\''
+    },
+    {
+        name: 'אמן רחוב',
+        icon: '🎨',
+        description: 'יוצר אמנות ספונטנית וצבעונית',
+        prompt: 'אני אמן רחוב, מחפש השראה בכל פינה. תפקידי לשאול שאלות יצירתיות וחופשיות, בין 5 ל-20 מילים, המשקפות את עולם האמנות. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'איזה צבע יכול לתאר את התחושה הזו?\', \'האם כל דבר יכול להיות אמנות?\''
+    },
+    {
+        name: 'בלש פרטי אנגלי',
+        icon: '🎩',
+        description: 'מבריק וקצת אקסצנטרי',
+        prompt: 'אני בלש פרטי אנגלי, בעל חשיבה אנליטית חדה. תפקידי לשאול שאלות מורכבות וחקירתיות, בין 5 ל-20 מילים, במבטא אנגלי קל. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'מהן הנסיבות המדויקות שהובילו לאירוע?\', \'האם ישנם פרטים נוספים שלא נחשפו?\''
+    },
+    {
+        name: 'טכנאי מחשבים מתוסכל',
+        icon: '🖥️',
+        description: 'רואה את הבעיות לפני שהן קורות',
+        prompt: 'אני טכנאי מחשבים מתוסכל, שנתקל כבר בכל תקלה אפשרית. תפקידי לשאול שאלות ציניות ופרקטיות, בין 5 ל-20 מילים, על עולם הטכנולוגיה. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'למה זה תמיד מתקלקל ברגע הכי לא מתאים?\', \'האם מישהו באמת קורא את תנאי השימוש האלה?\''
+    },
+    {
+        name: 'מדריך טיולים היסטורי',
+        icon: '🗺️',
+        description: 'אוהב לספר סיפורים מהעבר',
+        prompt: 'אני מדריך טיולים היסטורי, מרותק לעבר. תפקידי לשאול שאלות מעמיקות על אירועים היסטוריים ומשמעותם, בין 5 ל-20 מילים. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'איך השפיע האירוע הזה על מהלך ההיסטוריה?\', \'מה אנו יכולים ללמוד מכך לימינו?\''
+    },
+    {
+        name: 'חובב קפה מושבע',
+        icon: '☕',
+        description: 'מומחה לפולי קפה וסוגי חליטות',
+        prompt: 'אני חובב קפה מושבע, תמיד מחפש את הכוס המושלמת. תפקידי לשאול שאלות אנינות טעם ומתמחות בקפה, בין 5 ל-20 מילים. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'איזה מקור פולים יתאים לאספרסו עשיר?\', \'האם קפה קר יכול להיות אמנות אמיתית?\''
+    },
+    {
+        name: 'עיתונאי חוקר',
+        icon: '📝',
+        description: 'חושף שחיתויות ומגלה אמיתות',
+        prompt: 'אני עיתונאי חוקר, לא חושש לחשוף את האמת. תפקידי לשאול שאלות נוקבות וביקורתיות, בין 5 ל-20 מילים, על אירועים אקטואליים. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'האם הציבור אכן מודע לכל הפרטים?\', \'מי באמת הרוויח מהמהלך הזה?\''
+    },
+    {
+        name: 'זקנה נרגנת עם חתולים',
+        icon: '🧓',
+        description: 'אוהבת להתלונן ולקטר, אבל בעצם עם נשמה טובה',
+        prompt: 'אני זקנה נרגנת עם עשרה חתולים. תפקידי לשאול שאלות קצרות, בין 5 ל-20 מילים, עם הרבה קיטורים ודאגות. שאל כאילו את מראיינת, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'למה תמיד קר לי בבית, הא?\', \'איפה כל הצעירים של היום, אין להם כבוד?\''
+    },
+    {
+        name: 'מהנדס תעופה וחלל',
+        icon: '🚀',
+        description: 'חולם על כוכבים וטכנולוגיה מתקדמת',
+        prompt: 'אני מהנדס תעופה וחלל, מרותק ליקום. תפקידי לשאול שאלות מדויקות ומורכבות, בין 5 ל-20 מילים, על טכנולוגיה ומרחב. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'איך נפתור את בעיית הדלק במסעות לחלל עמוק?\', \'האם נגלה חיים מחוץ לכדור הארץ בקרוב?\''
+    },
+    {
+        name: 'אסטרונום חובב',
+        icon: '🔭',
+        description: 'מבלה לילות בצפייה בכוכבים',
+        prompt: 'אני אסטרונום חובב, המום מיופיו של היקום. תפקידי לשאול שאלות פשוטות ומתפעלות על גרמי שמיים, בין 5 ל-20 מילים. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'האם שביט מרהיב יחצה את השמיים בקרוב?\', \'איך נוצרו גלקסיות ענק כאלה?\''
+    },
+    {
+        name: 'כוכבנית אינסטגרם',
+        icon: '🤳',
+        description: 'חיה בשביל הלייקים והתגובות',
+        prompt: 'אני כוכבנית אינסטגרם, חיי סובבים סביב התמונה המושלמת. תפקידי לשאול שאלות קצרות וקלילות, בין 5 ל-20 מילים, שקשורות למראה ופופולריות. שאל כאילו את מראיינת, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'איך אני נראית בתמונה הזו, מושלם, נכון?\', \'האם כדאי לי לעשות עוד סטורי היום?\''
+    },
+    {
+        name: 'עובד מוזיאון היסטוריה',
+        icon: '🗿',
+        description: 'שומר על יצירות עתיקות',
+        prompt: 'אני עובד במוזיאון להיסטוריה, מוקף בפלאי העבר. תפקידי לשאול שאלות על חפצים עתיקים ותרבויות קדומות, בין 5 ל-20 מילים. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'מה הסיפור מאחורי כלי החרס הזה?\', \'האם נמצא עוד ממצאים באתר זה?\''
+    },
+    {
+        name: 'גיימר מקצועי',
+        icon: '🎮',
+        description: 'חי ונושם משחקי מחשב',
+        prompt: 'אני גיימר מקצועי, תמיד בחיפוש אחרי האתגר הבא. תפקידי לשאול שאלות אסטרטגיות ותחרותיות, בין 5 ל-20 מילים, על עולם המשחקים. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'איזו אסטרטגיה תבטיח ניצחון בסיבוב הבא?\', \'האם המודל יצליח להתמודד עם בינה מלאכותית?\''
+    },
+    {
+        name: 'מגדל ירקות אורגני',
+        icon: '🥕',
+        description: 'מחובר לאדמה ולטבע',
+        prompt: 'אני מגדל ירקות אורגני, ששמח לראות כל נבט. תפקידי לשאול שאלות פשוטות וקשורות לגידולים, בין 5 ל-20 מילים, עם דגש על טבע ובריאות. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'האם העגבניות יבשילו טוב השנה?\', \'מה הסוד לגידול ירקות טעימים כל כך?\''
+    },
+    {
+        name: 'סטנדאפיסט בתחילת דרכו',
+        icon: '🎤',
+        description: 'מנסה את מזלו עם הומור',
+        prompt: 'אני סטנדאפיסט בתחילת דרכי, תמיד מחפש חומרים חדשים. תפקידי לשאול שאלות מצחיקות וקצת ביזאריות, בין 5 ל-20 מילים, בניסיון לבחון תגובות. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'למה תמיד נופלים על הצד המרוח בחמאה?\', \'האם יש בדיחה על בינה מלאכותית?\''
+    },
+    {
+        name: 'בלוגר אופנה',
+        icon: '👗',
+        description: 'מעודכן בטרנדים האחרונים',
+        prompt: 'אני בלוגר אופנה, תמיד עם עין חדה על הטרנדים. תפקידי לשאול שאלות קלילות ועדכניות, בין 5 ל-20 מילים, על עולם האופנה. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'איזה צבע הוא הלהיט של העונה הקרובה?\', \'האם סגנון זה עדיין אופנתי, לדעתך?\''
+    },
+    {
+        name: 'פרמדיק שטח',
+        icon: '🚑',
+        description: 'רואה הכל, נשאר רגוע',
+        prompt: 'אני פרמדיק שטח, רגיל ללחץ ואנדרנלין. תפקידי לשאול שאלות ישירות ופרקטיות, בין 5 ל-20 מילים, על מצבי חירום. שאל כאילו אתה מראיין, ותמיד בסיום המשפט שאל עם סימן שאלה. לדוגמה: \'מה הפעולה הראשונה שתעשה במקרה חירום?\', \'האם חשוב לשמור על קור רוח?\''
+    }
+
+        {
         name: 'ביבי',
         icon: '🇮🇱',
         description: 'ראש ממשלת ישראל',
@@ -118,345 +283,176 @@ const characters = [
     }
 ];
 
-// DOM Elements
-const elements = {
-    loading: document.getElementById('loading'),
-    apiSetup: document.getElementById('apiSetup'),
-    mainApp: document.getElementById('mainApp'),
-    apiForm: document.getElementById('apiForm'),
-    apiKey: document.getElementById('apiKey'),
-    toggleApiKey: document.getElementById('toggleApiKey'),
-    welcomeScreen: document.getElementById('welcomeScreen'),
-    chatContainer: document.getElementById('chatContainer'),
-    startChatBtn: document.getElementById('startChatBtn'),
-    setupModal: document.getElementById('setupModal'),
-    closeSetupModal: document.getElementById('closeSetupModal'),
-    characterGrid: document.getElementById('characterGrid'),
-    startCustomChat: document.getElementById('startCustomChat'),
-    chatMessages: document.getElementById('chatMessages'),
-    chatTitle: document.getElementById('chatTitle'),
-    chatStatus: document.getElementById('chatStatus'),
-    roundCounter: document.getElementById('roundCounter'),
-    continueBtn: document.getElementById('continueBtn'),
-    stopChatBtn: document.getElementById('stopChatBtn'),
-    pauseBtn: document.getElementById('pauseBtn'),
-    newChatBtn: document.getElementById('newChatBtn'),
-    exportBtn: document.getElementById('exportBtn'),
-    settingsBtn: document.getElementById('settingsBtn'),
-    settingsModal: document.getElementById('settingsModal'),
-    closeSettingsModal: document.getElementById('closeSettingsModal'),
-    chatHistory: document.getElementById('chatHistory'),
-    customTopic: document.getElementById('customTopic'),
-    customStyle: document.getElementById('customStyle'),
-    questionInstructions: document.getElementById('questionInstructions'),
-    answerInstructions: document.getElementById('answerInstructions')
-};
+// --- Utility Functions ---
 
-// Initialize App
-document.addEventListener('DOMContentLoaded', () => {
-    // Hide loading screen
-    setTimeout(() => {
-        elements.loading.classList.add('hidden');
-        init();
-    }, 1000);
-});
+// Loads API key from local storage
+function getApiKey() {
+    return localStorage.getItem(API_KEY_STORAGE_KEY);
+}
 
-function init() {
-    // Check if API key exists
-    apiKey = localStorage.getItem('geminiApiKey');
-    
+// Saves API key to local storage
+function saveApiKey(key) {
+    localStorage.setItem(API_KEY_STORAGE_KEY, key);
+}
+
+// Toggles password visibility
+function togglePasswordVisibility(inputElement, toggleButton) {
+    const type = inputElement.getAttribute('type') === 'password' ? 'text' : 'password';
+    inputElement.setAttribute('type', type);
+    toggleButton.querySelector('i').classList.toggle('fa-eye');
+    toggleButton.querySelector('i').classList.toggle('fa-eye-slash');
+}
+
+// Initialize Gemini AI
+function initializeGemini(apiKey) {
     if (apiKey) {
-        showMainApp();
-    } else {
-        showApiSetup();
+        genAI = new GoogleGenerativeAI(apiKey);
+        return true;
     }
-    
-    // Load chat history
-    loadChatHistory();
-    setupEventListeners();
-    setupCharacterGrid();
-    setupTabs();
+    return false;
 }
 
-function showApiSetup() {
-    elements.apiSetup.classList.remove('hidden');
-    elements.mainApp.classList.add('hidden');
+// Display/hide sections
+function showSection(sectionElement) {
+    sectionElement.classList.remove('hidden');
 }
 
-function showMainApp() {
-    elements.apiSetup.classList.add('hidden');
-    elements.mainApp.classList.remove('hidden');
-    elements.welcomeScreen.classList.remove('hidden');
-    elements.chatContainer.classList.add('hidden');
+function hideSection(sectionElement) {
+    sectionElement.classList.add('hidden');
 }
 
-function setupEventListeners() {
-    // API Form
-    elements.apiForm.addEventListener('submit', handleApiSubmit);
-    elements.toggleApiKey.addEventListener('click', togglePasswordVisibility);
-    
-    // Main App Events
-    elements.startChatBtn.addEventListener('click', showSetupModal);
-    elements.newChatBtn.addEventListener('click', showSetupModal);
-    elements.exportBtn.addEventListener('click', exportCurrentChat);
-    elements.settingsBtn.addEventListener('click', showSettingsModal);
-    
-    // Modal Events
-    elements.closeSetupModal.addEventListener('click', hideSetupModal);
-    elements.closeSettingsModal.addEventListener('click', hideSettingsModal);
-    elements.startCustomChat.addEventListener('click', startCustomChat);
-    
-    // Chat Events
-    elements.continueBtn.addEventListener('click', continueChat);
-    elements.stopChatBtn.addEventListener('click', stopChat);
-    elements.pauseBtn.addEventListener('click', togglePause);
-    
-    // Click outside modal to close
-    elements.setupModal.addEventListener('click', (e) => {
-        if (e.target === elements.setupModal) hideSetupModal();
-    });
-    
-    elements.settingsModal.addEventListener('click', (e) => {
-        if (e.target === elements.settingsModal) hideSettingsModal();
-    });
-}
-
-function setupCharacterGrid() {
-    elements.characterGrid.innerHTML = '';
-    
-    characters.forEach((character, index) => {
-        const card = document.createElement('div');
-        card.className = 'character-card';
-        card.dataset.characterIndex = index;
-        
-        card.innerHTML = `
-            <div class="character-icon">${character.icon}</div>
-            <div class="character-name">${character.name}</div>
-            <div class="character-desc">${character.description}</div>
-        `;
-        
-        card.addEventListener('click', () => selectCharacter(index));
-        elements.characterGrid.appendChild(card);
-    });
-}
-
-function setupTabs() {
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
-    
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabName = btn.dataset.tab;
-            
-            // Remove active class from all tabs and contents
-            tabBtns.forEach(b => b.classList.remove('active'));
-            tabContents.forEach(c => c.classList.remove('active'));
-            
-            // Add active class to clicked tab and corresponding content
-            btn.classList.add('active');
-            document.getElementById(tabName + 'Tab').classList.add('active');
-        });
-    });
-}
-
-function handleApiSubmit(e) {
-    e.preventDefault();
-    const key = elements.apiKey.value.trim();
-    
-    if (key) {
-        // Save API key
-        localStorage.setItem('geminiApiKey', key);
-        apiKey = key;
-        showMainApp();
+// Call Gemini API
+async function callGeminiAPI(history) {
+    if (!genAI) {
+        throw new Error("Gemini API not initialized. Please set your API key.");
     }
-}
-
-function togglePasswordVisibility() {
-    const input = elements.apiKey;
-    const icon = elements.toggleApiKey.querySelector('i');
-    
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.className = 'fas fa-eye-slash';
-    } else {
-        input.type = 'password';
-        icon.className = 'fas fa-eye';
-    }
-}
-
-function showSetupModal() {
-    elements.setupModal.classList.remove('hidden');
-}
-
-function hideSetupModal() {
-    elements.setupModal.classList.add('hidden');
-}
-
-function showSettingsModal() {
-    elements.settingsModal.classList.remove('hidden');
-}
-
-function hideSettingsModal() {
-    elements.settingsModal.classList.add('hidden');
-}
-
-function selectCharacter(index) {
-    // Remove previous selection
-    document.querySelectorAll('.character-card').forEach(card => {
-        card.classList.remove('selected');
-    });
-    
-    // Select new character
-    const card = document.querySelector(`[data-character-index="${index}"]`);
-    card.classList.add('selected');
-}
-
-function startCustomChat() {
-    const selectedCard = document.querySelector('.character-card.selected');
-    let chatConfig = {};
-    
-    if (selectedCard) {
-        // Character-based chat
-        const characterIndex = parseInt(selectedCard.dataset.characterIndex);
-        const character = characters[characterIndex];
-        
-        chatConfig = {
-            type: 'character',
-            character: character,
-            questionInstructions: elements.questionInstructions.value || character.prompt,
-            answerInstructions: elements.answerInstructions.value || 'ענה על השאלה בצורה מפורטת ועניינית.'
-        };
-    } else {
-        // Custom chat
-        const topic = elements.customTopic.value.trim();
-        const style = elements.customStyle.value.trim();
-        
-        if (!topic) {
-            alert('אנא הכנס נושא לשיחה');
-            return;
-        }
-        
-        chatConfig = {
-            type: 'custom',
-            topic: topic,
-            style: style || 'שיחה כללית',
-            questionInstructions: elements.questionInstructions.value || `שאל שאלה על ${topic} בסגנון ${style}`,
-            answerInstructions: elements.answerInstructions.value || 'ענה על השאלה בצורה מפורטת ועניינית.'
-        };
-    }
-    
-    startChat(chatConfig);
-    hideSetupModal();
-}
-
-function startChat(config) {
-    currentChat = {
-        id: Date.now(),
-        config: config,
-        messages: [],
-        startTime: new Date(),
-        isActive: true
-    };
-    
-    currentRound = 0;
-    maxRounds = 5;
-    isGenerating = false;
-    
-    // Update UI
-    elements.welcomeScreen.classList.add('hidden');
-    elements.chatContainer.classList.remove('hidden');
-    elements.chatMessages.innerHTML = '';
-    elements.continueBtn.classList.add('hidden');
-    
-    // Set chat title
-    const title = config.type === 'character' ? 
-        `צ'אט עם ${config.character.name}` : 
-        `צ'אט על ${config.topic}`;
-    elements.chatTitle.textContent = title;
-    
-    // Start conversation
-    generateNextRound();
-}
-
-async function generateNextRound() {
-    if (currentRound >= maxRounds || !currentChat || !currentChat.isActive) {
-        if (currentRound >= maxRounds) {
-            elements.continueBtn.classList.remove('hidden');
-        }
-        updateChatStatus('הושלם');
-        return;
-    }
-    
-    currentRound++;
-    updateRoundCounter();
-    updateChatStatus('מייצר שאלה...');
-    
     try {
-        // Generate question
-        const question = await generateQuestion();
-        if (!question) return;
-        
-        addMessage(question, 'question');
-        updateChatStatus('מייצר תשובה...');
-        
-        // Generate answer
-        const answer = await generateAnswer(question);
-        if (!answer) return;
-        
-        addMessage(answer, 'answer');
-        
-        // Continue to next round after delay
-        if (currentChat.isActive) {
-            setTimeout(() => {
-                generateNextRound();
-            }, 2000);
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const chat = model.startChat({
+            history: history,
+            generationConfig: {
+                maxOutputTokens: 500,
+            },
+        });
+        const result = await chat.sendMessageStream(''); // Send empty message to get stream response based on history
+        let fullText = '';
+        for await (const chunk of result.stream) {
+            const chunkText = chunk.text();
+            fullText += chunkText;
+            // You might want to update UI with partial text here
         }
-        
+        return fullText;
     } catch (error) {
-        console.error('Error generating conversation:', error);
-        updateChatStatus('שגיאה בייצור השיחה');
-        alert('שגיאה בחיבור לג\'מיני. אנא בדוק את מפתח ה-API. פרטים נוספים בקונסול.');
+        console.error("Error calling Gemini API:", error);
+        throw new Error("Failed to get response from Gemini. Check your API key or network connection.");
     }
 }
 
+// Add message to chat display
+function addMessageToChat(type, sender, content) {
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', type);
+
+    const headerDiv = document.createElement('div');
+    headerDiv.classList.add('message-header');
+    headerDiv.innerHTML = `<strong>${sender}</strong>`;
+
+    const contentDiv = document.createElement('div');
+    contentDiv.classList.add('message-content');
+    contentDiv.innerHTML = marked.parse(content); // Use marked.js for Markdown rendering
+
+    messageDiv.appendChild(headerDiv);
+    messageDiv.appendChild(contentDiv);
+    elements.chatMessages.appendChild(messageDiv);
+    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight; // Scroll to bottom
+}
+
+// --- Chat Logic ---
+
+// Generates a question from the selected character/custom style
 async function generateQuestion() {
     const config = currentChat.config;
     let prompt = '';
+    let characterIntro = '';
     
-    if (config.type === 'character') {
-        prompt = `אתה מגלם את דמותו של ${config.character.name} (${config.character.description}). עליך לשאול שאלה אחת בלבד, בין 5 ל-20 מילים, המשקפת את סגנון הדמות. שאל כאילו אתה מראיין את הצד השני (המודל), ותמיד בסיום המשפט שאל עם סימן שאלה. אל תכלול את המילה "ג\'מיני" בשאלה. לדוגמה, אם אתה ביבי, שאל: 'איך לדעתי נבטיח את ביטחון ישראל?' או 'האם זו הדרך הנכונה לטפל בכלכלה לדעתי?'. ודא שהשאלה הנוכחית שונה לחלוטין משאלות קודמות.`;
-    } else {
-        prompt = `שאל שאלה אחת בלבד, בין 5 ל-20 מילים, על ${config.topic} בסגנון ${config.style}. השאלה צריכה להיות ייחודית ולא לחזור על שאלות קודמות, ותמיד להסתיים בסימן שאלה. אל תכלול את המילה "ג\'מיני" בשאלה.`;
+    // Determine the topic for the prompt
+    let topicForPrompt = config.topic;
+    if (!topicForPrompt && config.type === 'character') {
+        // Fallback for character if no specific topic was entered, use character description as a general topic idea
+        topicForPrompt = `נושא כללי שמתאים ל${config.character.name} (${config.character.description})`;
+    } else if (!topicForPrompt) {
+        // Fallback for custom if no topic was entered (should be caught by validation)
+        topicForPrompt = 'נושא כללי';
     }
-    
-    // הוספת היסטוריית השיחה לפרומפט כדי למנוע חזרה על שאלות (חשוב!)
-    // הפעם נבנה את ההיסטוריה באופן תואם לפורמט השיחה של ג'מיני
+
+
+    if (config.type === 'character') {
+        characterIntro = `אני ${config.character.name} (${config.character.description}).`;
+        // הפרומפט לדמות: הציג את עצמך, שאל שאלה בין 5 ל-20 מילים על הנושא הנבחר, הסבר בקצרה למה השאלה רלוונטית לנושא.
+        prompt = `${characterIntro} שאל/י שאלה אחת בלבד, בין 5 ל-20 מילים, המשקפת את סגנונך, על הנושא: "${topicForPrompt}". הסבר/י בקצרה איך השאלה מתקשרת לנושא, ותמיד בסיום המשפט שאל/י עם סימן שאלה. אל תכלול/י את המילה "ג'מיני" בשאלה. ודא/י שהשאלה הנוכחית שונה לחלוטין משאלות קודמות שעלולות להופיע בהיסטוריה. ${config.questionInstructions}`;
+    } else { // Custom chat
+        // הפרומפט למצב מותאם אישית: שאל שאלה על הנושא והסגנון, הסבר למה השאלה רלוונטית.
+        prompt = `שאל/י שאלה אחת בלבד, בין 5 ל-20 מילים, על הנושא: "${topicForPrompt}" בסגנון "${config.style}". הסבר/י בקצרה איך השאלה מתקשרת לנושא, ותמיד להסתיים בסימן שאלה. אל תכלול/י את המילה "ג'מיני" בשאלה. השאלה צריכה להיות ייחודית ולא לחזור על שאלות קודמות. ${config.questionInstructions}`;
+    }
+
     const conversationHistory = [];
+    // Add previous messages to history for context
     if (currentChat && currentChat.messages.length > 0) {
         currentChat.messages.forEach(msg => {
             conversationHistory.push({
-                role: msg.type === 'question' ? 'user' : 'model',
+                role: msg.type === 'question' ? 'user' : 'model', // 'user' is the character/you, 'model' is Gemini
                 parts: [{ text: msg.content }]
             });
         });
     }
-    
-    // הוספת הפרומפט הנוכחי (הבקשה לשאלה)
+
     conversationHistory.push({
         role: "user",
         parts: [{ text: prompt }]
     });
 
-    return await callGeminiAPI(conversationHistory);
+    const rawResponse = await callGeminiAPI(conversationHistory);
+    // Extract only the question part after the character intro and explanation
+    const questionMatch = rawResponse.match(/(\?|!|\.|"|').*$/); // Find the end of a sentence
+    let question = rawResponse.trim();
+    if (questionMatch) {
+         question = rawResponse.substring(0, questionMatch.index + 1);
+    }
+    
+    // Remove the character intro and explanation from the question
+    if (config.type === 'character') {
+        const introIndex = question.indexOf(characterIntro);
+        if (introIndex !== -1) {
+            question = question.substring(introIndex + characterIntro.length).trim();
+        }
+    }
+    
+    // Attempt to remove explanation part by looking for common phrases or sentence structure
+    const explanationRegex = /(?:שאלה זו|השאלה הזו|זו שאלה|שאלתי את זה|זה קשור לנושא|זה חשוב כי|זה נוגע ל|זה מראה ש).*$/;
+    let finalQuestion = question.replace(explanationRegex, '').trim();
+
+    // Ensure it ends with a question mark if it's a question
+    if (!finalQuestion.endsWith('?')) {
+        finalQuestion += '?';
+    }
+
+    return finalQuestion;
 }
 
+
+// Generates an answer from Gemini
 async function generateAnswer(question) {
     const config = currentChat.config;
-    // הפרומפט לבניית התשובה
-    let answerPrompt = `אתה ג\'מיני. ענה על השאלה הבאה מנקודת מבט אובייקטיבית, מפורטת ועניינית. הקפד להתייחס לשאלה הספציפית שנשאלה, ולא לשאול שאלות בחזרה. השאלה שנשאלה: "${question}"`;
+    // Base prompt for the answer, ensuring it responds to the specific question and topic.
+    let answerPrompt = `אתה ג'מיני. ענה/י על השאלה הבאה מנקודת מבט אובייקטיבית, מפורטת ועניינית. הקפד/י להתייחס לשאלה הספציפית שנשאלה, ולא לשאול שאלות בחזרה. התשובה צריכה להיות בין 10 ל-50 מילים. התייחס/י ל"נושא השיחה" של הצ'אט, שהוא "${config.topic}". השאלה שנשאלה: "${question}"`;
     
-    // בניית היסטוריית השיחה עם השאלה האחרונה והנחיה לתשובה
+    // Add specific answer instructions if provided
+    if (config.answerInstructions) {
+        answerPrompt += ` ${config.answerInstructions}`;
+    }
+
     const conversationHistory = [];
+    // Add previous messages to history for context (this time, the question is from the user role for Gemini to answer)
     if (currentChat && currentChat.messages.length > 0) {
         currentChat.messages.forEach(msg => {
             conversationHistory.push({
@@ -465,281 +461,416 @@ async function generateAnswer(question) {
             });
         });
     }
-    
-    // הוספת השאלה האחרונה מהדמות ותפקיד המודל
+
+    // Add the current question as the last user turn
     conversationHistory.push({
         role: "user",
-        parts: [{ text: question }] // השאלה שהדמות שאלה
+        parts: [{ text: question }] // This is the question that Gemini needs to answer
     });
-    conversationHistory.push({
-        role: "model",
-        parts: [{ text: answerPrompt }] // הנחיה למודל לענות על השאלה
-    });
-
 
     return await callGeminiAPI(conversationHistory);
 }
 
-async function callGeminiAPI(contents) { // מקבל מערך של contents במקום prompt בודד
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            contents: contents // מעביר את כל מערך ה-contents שהוכן
-            // safetySettings הוסרו זמנית לבדיקה
-        })
-    });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('API Error Response:', errorData);
-        throw new Error(`API Error: ${response.status} - ${errorData.error ? errorData.error.message : 'Unknown error or malformed response'}`);
-    }
-    
-    const data = await response.json();
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
-        console.error('Unexpected API response structure:', data);
-        throw new Error('Unexpected response from Gemini API: Missing content or invalid structure.');
-    }
-    return data.candidates[0].content.parts[0].text;
-}
 
-function addMessage(content, type) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
-    
-    const headerText = type === 'question' ? 'שאלה' : 'תשובה';
-    const icon = type === 'question' ? '❓' : '💬';
-    
-    messageDiv.innerHTML = `
-        <div class="message-header">
-            <span>${icon}</span>
-            <span>${headerText}</span>
-        </div>
-        <div class="message-content">${content}</div>
-    `;
-    
-    elements.chatMessages.appendChild(messageDiv);
-    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
-    
-    // Save to current chat
-    if (currentChat) {
-        currentChat.messages.push({
-            type: type,
-            content: content,
-            timestamp: new Date()
-        });
-        
-        // Save to localStorage
+// Main chat flow
+async function runChatRound() {
+    if (currentChat.currentRound >= currentChat.maxRounds) {
+        stopChat();
+        return;
+    }
+
+    elements.chatStatus.textContent = 'הדמות חושבת...';
+    elements.chatStatus.style.color = '#FFA500'; // Orange for thinking
+    elements.pauseBtn.disabled = true; // Disable pause during generation
+
+    try {
+        const questionText = await generateQuestion();
+        addMessageToChat('question', currentChat.config.character ? currentChat.config.character.name : 'אתה', questionText);
+        currentChat.messages.push({ type: 'question', content: questionText });
         saveChatHistory();
-    }
-}
 
-function updateRoundCounter() {
-    elements.roundCounter.textContent = `סיבוב ${currentRound}/${maxRounds}`;
-}
+        elements.chatStatus.textContent = 'ג\'מיני עונה...';
+        elements.chatStatus.style.color = '#3B82F6'; // Blue for answering
 
-function updateChatStatus(status) {
-    elements.chatStatus.textContent = status;
-}
+        const answerText = await generateAnswer(questionText);
+        addMessageToChat('answer', 'ג\'מיני', answerText);
+        currentChat.messages.push({ type: 'answer', content: answerText });
+        saveChatHistory();
 
-function continueChat() {
-    currentRound = 0;
-    maxRounds = 5;
-    elements.continueBtn.classList.add('hidden');
-    updateChatStatus('ממשיך...');
-    
-    setTimeout(() => {
-        generateNextRound();
-    }, 1000);
-}
-
-function stopChat() {
-    if (currentChat) {
-        currentChat.isActive = false;
-        updateChatStatus('נעצר');
-    }
-}
-
-function togglePause() {
-    if (currentChat) {
-        currentChat.isActive = !currentChat.isActive;
-        const icon = elements.pauseBtn.querySelector('i');
+        currentChat.currentRound++;
+        elements.roundCounter.textContent = `סיבוב ${currentChat.currentRound}/${currentChat.maxRounds}`;
         
-        if (currentChat.isActive) {
-            icon.className = 'fas fa-pause';
-            updateChatStatus('פעיל');
-            generateNextRound();
-        } else {
-            icon.className = 'fas fa-play';
-            updateChatStatus('מושעה');
+        elements.chatStatus.textContent = 'מוכן';
+        elements.chatStatus.style.color = '#28a745'; // Green for ready
+        elements.pauseBtn.disabled = false;
+
+        if (currentChat.currentRound >= currentChat.maxRounds) {
+            elements.continueBtn.classList.remove('hidden');
+            elements.chatStatus.textContent = 'צ'אט הסתיים. לחץ להמשך או התחל חדש.';
+            elements.chatStatus.style.color = '#6c757d'; // Grey for finished
         }
+
+    } catch (error) {
+        console.error("Error in chat round:", error);
+        addMessageToChat('error', 'מערכת', `אירעה שגיאה: ${error.message}. אנא בדוק את מפתח ה-API שלך או נסה שוב.`);
+        stopChat();
     }
 }
 
-function loadChatHistory() {
-    const saved = localStorage.getItem('chatHistory');
-    if (saved) {
-        chatHistory = JSON.parse(saved);
-        updateChatHistoryUI();
+// Starts a new chat session
+function startChat(config) {
+    if (chatInterval) clearInterval(chatInterval); // Clear any existing interval
+
+    currentChat = {
+        id: Date.now(),
+        title: config.type === 'character' ? config.character.name : config.topic,
+        config: config,
+        messages: [],
+        currentRound: 0,
+        maxRounds: 5,
+        timestamp: new Date().toISOString()
+    };
+
+    elements.chatMessages.innerHTML = ''; // Clear previous messages
+    elements.chatTitle.textContent = currentChat.title;
+    elements.roundCounter.textContent = `סיבוב 0/5`;
+    elements.chatStatus.textContent = 'מוכן';
+    elements.chatStatus.style.color = '#28a745';
+    elements.continueBtn.classList.add('hidden');
+    elements.pauseBtn.querySelector('i').classList.replace('fa-play', 'fa-pause');
+    isPaused = false;
+
+    hideSection(elements.welcomeScreen);
+    showSection(elements.chatContainer);
+
+    // Save initial chat state to history (before first messages)
+    saveChatHistory();
+    renderChatHistory(); // Update sidebar
+
+    chatInterval = setInterval(runChatRound, 7000); // Start rounds every 7 seconds
+}
+
+// Continues the current chat for more rounds
+function continueChat() {
+    currentChat.maxRounds += 5;
+    elements.continueBtn.classList.add('hidden');
+    elements.chatStatus.textContent = 'מוכן';
+    elements.chatStatus.style.color = '#28a745';
+    elements.pauseBtn.querySelector('i').classList.replace('fa-play', 'fa-pause');
+    isPaused = false;
+    chatInterval = setInterval(runChatRound, 7000);
+    saveChatHistory(); // Save the updated maxRounds
+}
+
+// Pauses/resumes the chat
+function togglePauseChat() {
+    if (isPaused) {
+        chatInterval = setInterval(runChatRound, 7000);
+        elements.chatStatus.textContent = 'מוכן';
+        elements.chatStatus.style.color = '#28a745';
+        elements.pauseBtn.querySelector('i').classList.replace('fa-play', 'fa-pause');
+    } else {
+        clearInterval(chatInterval);
+        elements.chatStatus.textContent = 'מושהה';
+        elements.chatStatus.style.color = '#FFC107'; // Yellow for paused
+        elements.pauseBtn.querySelector('i').classList.replace('fa-pause', 'fa-play');
     }
+    isPaused = !isPaused;
+}
+
+// Stops the current chat
+function stopChat() {
+    if (chatInterval) clearInterval(chatInterval);
+    isPaused = true;
+    elements.pauseBtn.querySelector('i').classList.replace('fa-pause', 'fa-play');
+    elements.chatStatus.textContent = 'צ'אט הסתיים. התחל חדש.';
+    elements.chatStatus.style.color = '#DC3545'; // Red for stopped
+    elements.continueBtn.classList.remove('hidden');
+    // We keep the current chat loaded but allow starting a new one
+}
+
+// --- Chat History Management ---
+
+function getChatHistory() {
+    const history = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+    return history ? JSON.parse(history) : [];
 }
 
 function saveChatHistory() {
     if (currentChat) {
-        // Update existing chat or add new one
-        const existingIndex = chatHistory.findIndex(chat => chat.id === currentChat.id);
-        
-        if (existingIndex >= 0) {
-            chatHistory[existingIndex] = { ...currentChat };
+        const history = getChatHistory();
+        const existingIndex = history.findIndex(chat => chat.id === currentChat.id);
+        if (existingIndex > -1) {
+            history[existingIndex] = currentChat; // Update existing
         } else {
-            chatHistory.unshift({ ...currentChat });
+            history.unshift(currentChat); // Add new to top
         }
-        
-        // Keep only last 20 chats
-        chatHistory = chatHistory.slice(0, 20);
-        
-        localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
-        updateChatHistoryUI();
+        localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(history));
     }
 }
 
-function updateChatHistoryUI() {
-    elements.chatHistory.innerHTML = '';
-    
-    chatHistory.forEach(chat => {
-        const item = document.createElement('div');
-        item.className = 'chat-history-item';
+function renderChatHistory() {
+    elements.chatHistoryDiv.innerHTML = '';
+    const history = getChatHistory();
+    history.forEach(chat => {
+        const chatItem = document.createElement('div');
+        chatItem.classList.add('chat-history-item');
         if (currentChat && chat.id === currentChat.id) {
-            item.classList.add('active');
+            chatItem.classList.add('active');
         }
-        
-        const title = chat.config.type === 'character' ? 
-            `צ'אט עם ${chat.config.character.name}` : 
-            `צ'אט על ${chat.config.topic}`;
-            
-        const date = new Date(chat.startTime).toLocaleDateString('he-IL');
-        
-        item.innerHTML = `
-            <div class="chat-history-title">${title}</div>
-            <div class="chat-history-date">${date}</div>
-        `;
-        
-        item.addEventListener('click', () => loadChat(chat));
-        elements.chatHistory.appendChild(item);
+        chatItem.dataset.chatId = chat.id;
+
+        const titleDiv = document.createElement('div');
+        titleDiv.classList.add('chat-history-title');
+        titleDiv.textContent = chat.title;
+
+        const dateDiv = document.createElement('div');
+        dateDiv.classList.add('chat-history-date');
+        dateDiv.textContent = new Date(chat.timestamp).toLocaleString('he-IL');
+
+        chatItem.appendChild(titleDiv);
+        chatItem.appendChild(dateDiv);
+        elements.chatHistoryDiv.appendChild(chatItem);
+
+        chatItem.addEventListener('click', () => loadChat(chat.id));
     });
 }
 
-function loadChat(chat) {
-    currentChat = { ...chat };
-    
-    // Update UI
-    elements.welcomeScreen.classList.add('hidden');
-    elements.chatContainer.classList.remove('hidden');
-    elements.chatMessages.innerHTML = '';
-    
-    const title = chat.config.type === 'character' ? 
-        `צ'אט עם ${chat.config.character.name}` : 
-        `צ'אט על ${chat.config.topic}`;
-    elements.chatTitle.textContent = title;
-    
-    // Load messages
-    chat.messages.forEach(message => {
-        addMessageToUI(message.content, message.type);
-    });
-    
-    // Update status
-    updateChatStatus(chat.isActive ? 'טוען...' : 'הושלם');
-    currentRound = Math.floor(chat.messages.length / 2);
-    updateRoundCounter();
-    
-    updateChatHistoryUI();
+function loadChat(chatId) {
+    if (chatInterval) clearInterval(chatInterval); // Stop current running chat
+    isPaused = true; // Always start loaded chat as paused
+    elements.pauseBtn.querySelector('i').classList.replace('fa-pause', 'fa-play');
+
+    const history = getChatHistory();
+    const chatToLoad = history.find(chat => chat.id === chatId);
+
+    if (chatToLoad) {
+        currentChat = chatToLoad;
+        elements.chatMessages.innerHTML = '';
+        currentChat.messages.forEach(msg => {
+            const senderName = msg.type === 'question' ? (currentChat.config.character ? currentChat.config.character.name : 'אתה') : 'ג\'מיני';
+            addMessageToChat(msg.type, senderName, msg.content);
+        });
+
+        elements.chatTitle.textContent = currentChat.title;
+        elements.roundCounter.textContent = `סיבוב ${currentChat.currentRound}/${currentChat.maxRounds}`;
+        elements.chatStatus.textContent = 'מושהה (טען היסטוריה)';
+        elements.chatStatus.style.color = '#FFC107'; // Yellow for paused
+        elements.continueBtn.classList.remove('hidden'); // Allow continuing
+        elements.pauseBtn.disabled = false; // Enable pause button
+
+        hideSection(elements.welcomeScreen);
+        showSection(elements.chatContainer);
+        renderChatHistory(); // Update active state in sidebar
+    }
 }
 
-function addMessageToUI(content, type) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
-    
-    const headerText = type === 'question' ? 'שאלה' : 'תשובה';
-    const icon = type === 'question' ? '❓' : '💬';
-    
-    messageDiv.innerHTML = `
-        <div class="message-header">
-            <span>${icon}</span>
-            <span>${headerText}</span>
-        </div>
-        <div class="message-content">${content}</div>
-    `;
-    
-    elements.chatMessages.appendChild(messageDiv);
-    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+function clearAllHistory() {
+    if (confirm('האם אתה בטוח שברצונך למחוק את כל היסטוריית הצ\'אטים? פעולה זו בלתי הפיכה.')) {
+        localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY);
+        elements.chatHistoryDiv.innerHTML = '';
+        currentChat = null;
+        if (chatInterval) clearInterval(chatInterval);
+        isPaused = false;
+        hideSection(elements.chatContainer);
+        showSection(elements.welcomeScreen);
+        alert('היסטוריית הצ\'אטים נמחקה בהצלחה.');
+    }
 }
 
-function exportCurrentChat() {
-    if (!currentChat || !currentChat.messages.length) {
-        alert('אין צ\'אט פעיל לייצוא');
+// --- Export Chat ---
+function exportChat() {
+    if (!currentChat || currentChat.messages.length === 0) {
+        alert('אין צ\'אט פעיל לייצוא.');
         return;
     }
-    
-    const title = currentChat.config.type === 'character' ? 
-        `צ'אט עם ${currentChat.config.character.name}` : 
-        `צ'אט על ${currentChat.config.topic}`;
-        
-    let exportText = `${title}\n`;
-    exportText += `תאריך: ${new Date(currentChat.startTime).toLocaleString('he-IL')}\n`;
-    exportText += `${'='.repeat(50)}\n\n`;
-    
-    currentChat.messages.forEach((message, index) => {
-        const type = message.type === 'question' ? 'שאלה' : 'תשובה';
-        exportText += `${type} ${Math.floor(index / 2) + 1}:\n`;
-        exportText += `${message.content}\n\n`;
+
+    let exportText = `שם הצ'אט: ${currentChat.title}\n`;
+    exportText += `תאריך: ${new Date(currentChat.timestamp).toLocaleString('he-IL')}\n\n`;
+    exportText += `נושא: ${currentChat.config.topic || 'לא צוין'}\n`;
+    if (currentChat.config.type === 'character') {
+        exportText += `דמות: ${currentChat.config.character.name} (${currentChat.config.character.description})\n`;
+    } else {
+        exportText += `סגנון: ${currentChat.config.style || 'לא צוין'}\n`;
+    }
+    exportText += `----------------------------------------\n\n`;
+
+    currentChat.messages.forEach(msg => {
+        const senderName = msg.type === 'question' ? (currentChat.config.character ? currentChat.config.character.name : 'אתה') : 'ג\'מיני';
+        exportText += `${senderName}:\n${msg.content}\n\n`;
     });
-    
-    // Create and download file
+
     const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `${title.replace(/[^a-zA-Z0-9\u0590-\u05FF]/g, '_')}.txt`;
+    a.href = URL.createObjectURL(blob);
+    a.download = `${currentChat.title.replace(/[^a-zA-Z0-9א-ת]/g, '_')}_chat.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(a.href);
 }
 
-// Settings functions
-document.getElementById('saveSettings').addEventListener('click', () => {
-    const newApiKey = document.getElementById('newApiKey').value.trim();
-    
-    if (newApiKey) {
-        localStorage.setItem('geminiApiKey', newApiKey);
-        apiKey = newApiKey;
-        alert('מפתח API עודכן בהצלחה');
-    }
-    
-    hideSettingsModal();
-});
 
-document.getElementById('clearHistory').addEventListener('click', () => {
-    if (confirm('האם אתה בטוח שברצונך למחוק את כל ההיסטוריה?')) {
-        localStorage.removeItem('chatHistory');
-        chatHistory = [];
-        updateChatHistoryUI();
-        alert('ההיסטוריה נמחקה');
-    }
-});
+// --- Event Listeners and Initialization ---
 
-document.getElementById('toggleNewApiKey').addEventListener('click', () => {
-    const input = document.getElementById('newApiKey');
-    const icon = document.getElementById('toggleNewApiKey').querySelector('i');
-    
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.className = 'fas fa-eye-slash';
+document.addEventListener('DOMContentLoaded', () => {
+    const storedApiKey = getApiKey();
+    if (initializeGemini(storedApiKey)) {
+        hideSection(elements.loading);
+        hideSection(elements.apiSetup);
+        showSection(elements.mainApp);
+        renderChatHistory();
     } else {
-        input.type = 'password';
-        icon.className = 'fas fa-eye';
+        hideSection(elements.loading);
+        showSection(elements.apiSetup);
     }
+
+    // API Key Setup events
+    elements.apiForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const apiKey = elements.apiKeyInput.value.trim();
+        if (apiKey) {
+            saveApiKey(apiKey);
+            if (initializeGemini(apiKey)) {
+                hideSection(elements.apiSetup);
+                showSection(elements.mainApp);
+                renderChatHistory();
+            } else {
+                alert('מפתח API לא תקין. אנא נסה שוב.');
+            }
+        } else {
+            alert('אנא הכנס מפתח API.');
+        }
+    });
+
+    elements.toggleApiKey.addEventListener('click', () => {
+        togglePasswordVisibility(elements.apiKeyInput, elements.toggleApiKey);
+    });
+
+    // Main App buttons
+    elements.newChatBtn.addEventListener('click', () => {
+        showSection(elements.setupModal);
+        // Reset setup modal fields and select first tab
+        elements.customTopicInput.value = '';
+        elements.customTopicCustomInput.value = '';
+        elements.customStyleInput.value = '';
+        elements.questionInstructions.value = '';
+        elements.answerInstructions.value = '';
+        
+        // Ensure character tab is active by default and custom is not
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        elements.setupTabs.querySelector('[data-tab="character"]').classList.add('active');
+        elements.characterTab.classList.add('active');
+        
+        // Deselect any previously selected character
+        document.querySelectorAll('.character-card').forEach(card => card.classList.remove('selected'));
+    });
+
+    elements.exportBtn.addEventListener('click', exportChat);
+    elements.settingsBtn.addEventListener('click', () => {
+        elements.newApiKeyInput.value = ''; // Clear previous value
+        showSection(elements.settingsModal);
+    });
+
+    // Chat control buttons
+    elements.startChatBtn.addEventListener('click', () => {
+        elements.newChatBtn.click(); // Simulate click on new chat button to open setup modal
+    });
+    elements.continueBtn.addEventListener('click', continueChat);
+    elements.pauseBtn.addEventListener('click', togglePauseChat);
+    elements.stopChatBtn.addEventListener('click', stopChat);
+
+    // Setup Modal events
+    elements.closeSetupModal.addEventListener('click', () => hideSection(elements.setupModal));
+
+    elements.setupTabs.addEventListener('click', (e) => {
+        if (e.target.classList.contains('tab-btn')) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            e.target.classList.add('active');
+            document.getElementById(e.target.dataset.tab + 'Tab').classList.add('active');
+        }
+    });
+
+    // Populate character grid
+    characters.forEach((char, index) => {
+        const charCard = document.createElement('div');
+        charCard.classList.add('character-card');
+        charCard.dataset.characterIndex = index;
+        charCard.innerHTML = `
+            <div class="character-icon">${char.icon}</div>
+            <div class="character-name">${char.name}</div>
+            <div class="character-desc">${char.description}</div>
+        `;
+        charCard.addEventListener('click', () => {
+            document.querySelectorAll('.character-card').forEach(card => card.classList.remove('selected'));
+            charCard.classList.add('selected');
+        });
+        elements.characterGrid.appendChild(charCard);
+    });
+
+    elements.startCustomChatBtn.addEventListener('click', () => {
+        const selectedCharacterCard = document.querySelector('.character-card.selected');
+        let chatConfig = {};
+        let topic = '';
+
+        const activeTab = document.querySelector('.tab-content.active');
+        if (activeTab.id === 'characterTab') {
+            if (!selectedCharacterCard) {
+                alert('אנא בחר דמות כדי להתחיל צ\'אט.');
+                return;
+            }
+            topic = elements.customTopicInput.value.trim(); // Get topic from character tab's topic input
+            if (!topic) {
+                alert('אנא הכנס נושא שיחה עבור הדמות שבחרת.');
+                return;
+            }
+            const characterIndex = parseInt(selectedCharacterCard.dataset.characterIndex);
+            const character = characters[characterIndex];
+            chatConfig = {
+                type: 'character',
+                character: character,
+                topic: topic,
+                questionInstructions: elements.questionInstructions.value.trim(),
+                answerInstructions: elements.answerInstructions.value.trim()
+            };
+        } else if (activeTab.id === 'customTab') {
+            topic = elements.customTopicCustomInput.value.trim(); // Get topic from custom tab's topic input
+            const style = elements.customStyleInput.value.trim();
+            if (!topic) {
+                alert('אנא הכנס נושא שיחה עבור הצ\'אט המותאם אישית.');
+                return;
+            }
+            chatConfig = {
+                type: 'custom',
+                topic: topic,
+                style: style || 'שיחה כללית ופתוחה',
+                questionInstructions: elements.questionInstructions.value.trim(),
+                answerInstructions: elements.answerInstructions.value.trim()
+            };
+        } else { // Settings tab or no selection
+            alert('אנא בחר דמות או הגדר צ\'אט מותאם אישית כדי להתחיל.');
+            return;
+        }
+        
+        startChat(chatConfig);
+        hideSection(elements.setupModal);
+    });
+
+    // Settings Modal events
+    elements.closeSettingsModal.addEventListener('click', () => hideSection(elements.settingsModal));
+    elements.toggleNewApiKey.addEventListener('click', () => {
+        togglePasswordVisibility(elements.newApiKeyInput, elements.toggleNewApiKey);
+    });
+    elements.saveSettingsBtn.addEventListener('click', () => {
+        const newKey = elements.newApiKeyInput.value.trim();
+        if (newKey) {
+            saveApiKey(newKey);
+            initializeGemini(newKey);
+            alert('מפתח ה-API עודכן בהצלחה!');
+        }
+        hideSection(elements.settingsModal);
+    });
+    elements.clearHistoryBtn.addEventListener('click', clearAllHistory);
 });
