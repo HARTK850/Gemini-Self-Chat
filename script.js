@@ -506,7 +506,7 @@ async function runChatRound() {
 
         if (currentChat.currentRound >= currentChat.maxRounds) {
             elements.continueBtn.classList.remove('hidden');
-            elements.chatStatus.textContent = 'צ'אט הסתיים. לחץ להמשך או התחל חדש.';
+            elements.chatStatus.textContent = 'השיחה הסתיימה. לחץ להמשך או התחל חדש.';
             elements.chatStatus.style.color = '#6c757d'; // Grey for finished
         }
 
