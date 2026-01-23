@@ -58,9 +58,9 @@
                         <i class="fas fa-download"></i>
                         יצוא
                     </button>
-                    <button id="exportPodcastBtn" class="btn btn-secondary">
+                    <button id="podcastBtn" class="btn btn-secondary">
                         <i class="fas fa-podcast"></i>
-                        יצא כפודקאסט
+                        יצור פודקאסט
                     </button>
                     <button id="settingsBtn" class="btn btn-secondary">
                         <i class="fas fa-cog"></i>
@@ -76,7 +76,7 @@
                     <h3><i class="fas fa-history"></i> היסטוריית צ'אטים</h3>
                 </div>
                 <div id="chatHistory" class="chat-history">
-                    </div>
+                </div>
             </aside>
 
             <main class="chat-area">
@@ -84,7 +84,7 @@
                     <div class="welcome-content">
                         <i class="fas fa-comments"></i>
                         <h2>ברוך הבא לצ'אט העצמי של Gemini!</h2>
-                        <p>בחר דמות או הגדר סגנון שיחה כדי התחיל</p>
+                        <p>בחר דמות או הגדר סגנון שיחה כדי להתחיל</p>
                         <button id="startChatBtn" class="btn btn-primary btn-large">
                             <i class="fas fa-play"></i>
                             התחל צ'אט חדש
@@ -107,7 +107,7 @@
                     </div>
                     
                     <div id="chatMessages" class="chat-messages">
-                        </div>
+                    </div>
                     
                     <div class="chat-actions">
                         <button id="continueBtn" class="btn btn-primary hidden">
@@ -124,8 +124,9 @@
         </div>
     </div>
 
+    <!-- Setup Modal - הגדרות צ'אט חדש -->
     <div id="setupModal" class="modal hidden">
-        <div class="modal-content">
+        <div class="modal-content modal-large">
             <div class="modal-header">
                 <h3><i class="fas fa-cog"></i> הגדרות צ'אט חדש</h3>
                 <button id="closeSetupModal" class="btn-close">
@@ -136,13 +137,13 @@
                 <div class="setup-tabs">
                     <button class="tab-btn active" data-tab="character">דמויות</button>
                     <button class="tab-btn" data-tab="custom">מותאם אישית</button>
-                    <button class="tab-btn" data-tab="settings">הגדרות מתקדמות</button>
+                    <button class="tab-btn" data-tab="advanced">הגדרות מתקדמות</button>
                 </div>
 
                 <div id="characterTab" class="tab-content active">
                     <h4>בחר דמות:</h4>
                     <div class="character-grid" id="characterGrid">
-                        </div>
+                    </div>
                     <div class="input-group" style="margin-top: 20px;">
                         <label for="customTopic">נושא השיחה (חובה להתחלה):</label>
                         <input type="text" id="customTopic" placeholder="לדוגמה: עתיד הכלכלה, בינה מלאכותית, אירועי היום...">
@@ -152,20 +153,91 @@
                 <div id="customTab" class="tab-content">
                     <h4>הגדר סגנון שיחה מותאם:</h4>
                     <div class="input-group">
+                        <label for="customTopicCustom">נושא השיחה:</label>
+                        <input type="text" id="customTopicCustom" placeholder="לדוגמה: עתיד הכלכלה, בינה מלאכותית...">
+                    </div>
+                    <div class="input-group">
                         <label for="customStyle">סגנון השיחה:</label>
                         <textarea id="customStyle" placeholder="לדוגמה: שיחה ידידותית ופתוחה עם סקרנות רבה"></textarea>
                     </div>
                 </div>
 
-                <div id="settingsTab" class="tab-content">
-                    <h4>הנחיות מערכת:</h4>
-                    <div class="input-group">
-                        <label for="questionInstructions">הנחיות לשאלות:</label>
-                        <textarea id="questionInstructions" placeholder="הנחיות מיוחדות לג'מיני כששואל שאלות..."></textarea>
+                <div id="advancedTab" class="tab-content">
+                    <h4>הגדרות מתקדמות:</h4>
+                    
+                    <!-- בחירת מודלים -->
+                    <div class="settings-section">
+                        <h5><i class="fas fa-brain"></i> בחירת מודלים</h5>
+                        <div class="model-selection-grid">
+                            <div class="input-group">
+                                <label for="questionModel">מודל שואל:</label>
+                                <select id="questionModel" class="model-select">
+                                    <option value="gemini-2.5-flash-preview-05-20">Gemini 2.5 Flash (מומלץ)</option>
+                                    <option value="gemini-2.5-pro-preview-05-06">Gemini 2.5 Pro</option>
+                                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                                    <option value="custom-question">מותאם אישית...</option>
+                                </select>
+                                <input type="text" id="customQuestionModel" class="custom-model-input hidden" placeholder="הכנס שם מודל...">
+                            </div>
+                            <div class="input-group">
+                                <label for="answerModel">מודל עונה:</label>
+                                <select id="answerModel" class="model-select">
+                                    <option value="gemini-2.5-flash-preview-05-20">Gemini 2.5 Flash (מומלץ)</option>
+                                    <option value="gemini-2.5-pro-preview-05-06">Gemini 2.5 Pro</option>
+                                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                                    <option value="custom-answer">מותאם אישית...</option>
+                                </select>
+                                <input type="text" id="customAnswerModel" class="custom-model-input hidden" placeholder="הכנס שם מודל...">
+                            </div>
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label for="answerInstructions">הנחיות לתשובות:</label>
-                        <textarea id="answerInstructions" placeholder="הנחיות מיוחדות לג'מיני כשעונה על שאלות..."></textarea>
+
+                    <!-- הגדרות סיבובים -->
+                    <div class="settings-section">
+                        <h5><i class="fas fa-sync-alt"></i> הגדרות סיבובים</h5>
+                        <div class="rounds-settings">
+                            <div class="input-group">
+                                <label>
+                                    <input type="checkbox" id="unlimitedRounds"> 
+                                    שיחה ללא הגבלת סיבובים
+                                </label>
+                            </div>
+                            <div id="roundsLimitSection">
+                                <div class="input-group">
+                                    <label for="roundsCount">מספר סיבובים:</label>
+                                    <div class="rounds-control">
+                                        <button type="button" class="stepper-btn" id="decreaseRounds">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                        <input type="number" id="roundsCount" value="5" min="1" max="100">
+                                        <button type="button" class="stepper-btn" id="increaseRounds">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="token-estimate">
+                                    <i class="fas fa-calculator"></i>
+                                    <span id="tokenEstimate">הערכת טוקנים: ~2,500 - 5,000</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- הנחיות מערכת -->
+                    <div class="settings-section">
+                        <h5><i class="fas fa-terminal"></i> הנחיות מערכת</h5>
+                        <div class="input-group">
+                            <label for="questionInstructions">הנחיות לשאלות:</label>
+                            <textarea id="questionInstructions" placeholder="הנחיות מיוחדות לג'מיני כששואל שאלות..."></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label for="answerInstructions">הנחיות לתשובות:</label>
+                            <textarea id="answerInstructions" placeholder="הנחיות מיוחדות לג'מיני כשעונה על שאלות..."></textarea>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -178,6 +250,7 @@
         </div>
     </div>
 
+    <!-- Settings Modal - הגדרות כלליות -->
     <div id="settingsModal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
@@ -194,54 +267,21 @@
                         <i class="fas fa-eye"></i>
                     </button>
                 </div>
-                <!-- New: Model Selection -->
-                <div class="input-group">
-                    <label for="chatModel">מודל השיחה:</label>
-                    <select id="chatModel">
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                        <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
-                        <option value="gemini-2.0-experimental">Gemini 2.0 Experimental</option>
-                    </select>
-                </div>
-                <!-- New: Separate Models for Questioner and Answerer -->
-                <div class="input-group">
-                    <label for="questionerModel">מודל שואל:</label>
-                    <select id="questionerModel">
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                        <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
-                        <option value="gemini-2.0-experimental">Gemini 2.0 Experimental</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label for="answererModel">מודל עונה:</label>
-                    <select id="answererModel">
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                        <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
-                        <option value="gemini-2.0-experimental">Gemini 2.0 Experimental</option>
-                    </select>
-                </div>
-                <!-- New: Number of Rounds Selection -->
-                <div class="input-group">
-                    <label for="numRounds">מספר סיבובים (שאלות ותשובות):</label>
-                    <input type="number" id="numRounds" min="1" max="50" value="5">
-                    <span id="tokenEstimate">הערכת טוקנים: 0 (מחושב לפי אורך נושא ממוצע)</span>
-                </div>
-                <!-- New: Chat Mode Selection (Limited Rounds or Unlimited) -->
-                <div class="input-group">
-                    <label>מצב שיחה:</label>
-                    <div>
-                        <input type="radio" id="limitedMode" name="chatMode" value="limited" checked>
-                        <label for="limitedMode">מספר סיבובים מוגבל</label>
-                    </div>
-                    <div>
-                        <input type="radio" id="unlimitedMode" name="chatMode" value="unlimited">
-                        <label for="unlimitedMode">ללא הגבלה (עם כפתור עצירה)</label>
+                
+                <div class="settings-section">
+                    <h5><i class="fas fa-brain"></i> מודל ברירת מחדל</h5>
+                    <div class="input-group">
+                        <label for="defaultModel">מודל ברירת מחדל לשיחות:</label>
+                        <select id="defaultModel" class="model-select">
+                            <option value="gemini-2.5-flash-preview-05-20">Gemini 2.5 Flash (מומלץ)</option>
+                            <option value="gemini-2.5-pro-preview-05-06">Gemini 2.5 Pro</option>
+                            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                        </select>
                     </div>
                 </div>
-                <!-- Existing: Clear History -->
+                
                 <div class="input-group">
                     <button id="clearHistory" class="btn btn-danger">
                         <i class="fas fa-trash"></i>
@@ -258,39 +298,86 @@
         </div>
     </div>
 
-    <!-- New: Podcast Export Modal (for TTS configuration) -->
-    <div id="podcastExportModal" class="modal hidden">
-        <div class="modal-content">
+    <!-- Podcast Modal - יצירת פודקאסט -->
+    <div id="podcastModal" class="modal hidden">
+        <div class="modal-content modal-large">
             <div class="modal-header">
-                <h3><i class="fas fa-podcast"></i> יצא שיחה כפודקאסט</h3>
+                <h3><i class="fas fa-podcast"></i> יצירת פודקאסט קולי</h3>
                 <button id="closePodcastModal" class="btn-close">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <p>בחר הגדרות לפודקאסט:</p>
-                <div class="input-group">
-                    <label for="podcastSpeakers">תצורת דוברים:</label>
-                    <select id="podcastSpeakers">
-                        <option value="two_males">שני גברים</option>
-                        <option value="two_females">שתי נשים</option>
-                        <option value="male_female">גבר ואישה</option>
-                    </select>
+                <div class="podcast-info">
+                    <p><i class="fas fa-info-circle"></i> יצירת פודקאסט קולי מהשיחה הנוכחית באמצעות Gemini 2.5 Flash TTS</p>
                 </div>
-                <div id="podcastStatus" class="status"></div>
-                <audio id="podcastPlayer" controls></audio>
-                <a id="downloadPodcastLink" class="btn btn-primary" style="pointer-events: none; display: none;">
-                    <i class="fas fa-download"></i> הורד פודקאסט
-                </a>
+                
+                <div class="settings-section">
+                    <h5><i class="fas fa-users"></i> תצורת דוברים</h5>
+                    <div class="speakers-grid">
+                        <div class="speaker-card selected" data-config="male_female">
+                            <i class="fas fa-venus-mars"></i>
+                            <span>גבר ואישה</span>
+                        </div>
+                        <div class="speaker-card" data-config="two_males">
+                            <i class="fas fa-mars-double"></i>
+                            <span>שני גברים</span>
+                        </div>
+                        <div class="speaker-card" data-config="two_females">
+                            <i class="fas fa-venus-double"></i>
+                            <span>שתי נשים</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h5><i class="fas fa-file-alt"></i> תסריט הפודקאסט</h5>
+                    <div class="script-preview" id="podcastScriptPreview">
+                        <p class="script-placeholder">התסריט יווצר אוטומטית מהשיחה...</p>
+                    </div>
+                    <textarea id="podcastScript" class="podcast-script-editor hidden" placeholder="ערוך את התסריט כאן..."></textarea>
+                    <div class="script-actions">
+                        <button id="generateScriptBtn" class="btn btn-secondary">
+                            <i class="fas fa-magic"></i>
+                            צור תסריט מהשיחה
+                        </button>
+                        <button id="editScriptBtn" class="btn btn-secondary">
+                            <i class="fas fa-edit"></i>
+                            ערוך תסריט
+                        </button>
+                    </div>
+                </div>
+
+                <div id="podcastStatus" class="podcast-status hidden">
+                    <div class="podcast-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="podcastProgressFill"></div>
+                        </div>
+                        <span id="podcastStatusText">מייצר פודקאסט...</span>
+                    </div>
+                </div>
+
+                <div id="podcastResult" class="podcast-result hidden">
+                    <h5><i class="fas fa-headphones"></i> הפודקאסט מוכן!</h5>
+                    <audio id="podcastPlayer" controls></audio>
+                    <div class="podcast-download">
+                        <a id="downloadPodcastBtn" class="btn btn-primary" download="podcast.wav">
+                            <i class="fas fa-download"></i>
+                            הורד קובץ WAV
+                        </a>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
-                <button id="generatePodcastBtn" class="btn btn-primary">
-                    <i class="fas fa-volume-up"></i> צור פודקאסט
+                <button id="createPodcastBtn" class="btn btn-primary" disabled>
+                    <i class="fas fa-podcast"></i>
+                    צור פודקאסט
                 </button>
             </div>
         </div>
     </div>
 
-    <script src="script.js" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
